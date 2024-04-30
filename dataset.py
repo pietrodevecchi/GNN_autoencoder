@@ -122,7 +122,9 @@ def create_dataset(device, problem, train_size):
     :param train_size:  size of the training set
     :return:            tuple of dictionaries (see load_data)
     '''
-    mydir = os.getcwd() + f'/data/{problem}/'
+    # mydir = os.getcwd() + f'/data/{problem}/'
+    # colab
+    mydir = os.getcwd() + f'/GNN_autoencoder/data/{problem}/'
 
     with open(mydir+'data.json', 'r') as f:
         json_data = json.loads(f.read())
