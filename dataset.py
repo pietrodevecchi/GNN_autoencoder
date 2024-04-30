@@ -6,6 +6,9 @@ import json
 import os
 
 
+import torch
+from torch_geometric.utils import add_remaining_self_loops
+
 
 def buildconnectivity(mesh):
     '''builds the connectivity matrix of a mesh
@@ -79,6 +82,8 @@ def load_data(indices,json_data,device,mydir,problem):
     for i in indices:
         mesh = dolfin.cpp.mesh.Mesh(mydir + json_data[i]['mesh'] + ".xml")
         edge_index = torch.t(torch.from_numpy(buildconnectivity(mesh)).long()).to(device)
+        # make it undirected
+        edge_index = torch.cat([edge_index, edge_index.flip([0])], dim=1)
         meshes.append(mesh)
         edge_indices.append(edge_index)
         edge_weights.append(initialize_weights(edge_index, mesh).to(device))
@@ -131,3 +136,37 @@ def create_dataset(device, problem, train_size):
     train_data = load_data(train_indices,json_data,device,mydir,problem)
     test_data = load_data(test_indices, json_data, device,mydir,problem)
     return train_data, test_data
+
+
+
+def random_edge_augmentation(edge_index, edge_attr, mesh, augment_factor=0.2):
+    ''' Random edge augmentation to increase connectivity'''
+
+    num_nodes = edge_index.max().item() + 1  # Assuming node indices start from 0
+    num_edges = edge_index.size(1)
+
+    # Calculate the number of edges to add
+    num_edges_to_add = int(num_edges * augment_factor)
+
+    # Randomly select pairs of nodes to form new edges
+    new_edges = torch.randint(num_nodes, (2, num_edges_to_add // 2), dtype=torch.long, device=edge_index.device)
+
+    # Add each edge in both directions
+    new_edges = torch.cat([new_edges, new_edges.flip([0])], dim=1)
+
+    # Initialize weights for the new edges
+    new_edge_attr = initialize_weights(new_edges, mesh)
+    new_edge_attr = new_edge_attr.to(edge_attr.device)
+
+    # Concatenate the original edges with the new edges
+    edge_index = torch.cat([edge_index, new_edges], dim=1)
+
+    # Concatenate the original edge attributes with the new edge attributes
+    edge_attr = torch.cat([edge_attr.squeeze(0), new_edge_attr], dim=0)
+
+    # Ensure the graph remains undirected
+    edge_index, edge_attr = add_remaining_self_loops(edge_index, edge_attr)
+
+    edge_attr = edge_attr.unsqueeze(0)
+
+    return edge_index, edge_attr
