@@ -147,7 +147,7 @@ class Learner():
         print("End Training")
         # Save the model
         idf = np.random.randint(100000)
-        torch.save(self.net.state_dict(), f'checkpoints/chk_AE_{idf}')
+        torch.save(self.net.state_dict(), f'/content/GNN_autoencoder/checkpoints/chk_AE_{idf}')
         print("Saving model")
 
 
